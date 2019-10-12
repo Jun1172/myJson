@@ -6,12 +6,14 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "myJsonPack.h"
+
 /*设定JSON缓存区大小*/
-#define MYJSON_ARRAYY_SIZE (4*1024)
-#define MYJSON_BUFFER_SIZE (20)
+#define MYJSON_ARRAYY_SIZE (4096)
+#define MYJSON_BUFFER_SIZE (4096)
 
 //允许UBUNTU调试
-#define UBUNTU_TEST	1
+#define UBUNTU_TEST	0
 
 #if UBUNTU_TEST
 extern char myJsonArray[MYJSON_ARRAYY_SIZE];
@@ -73,7 +75,48 @@ char myJson_getValue(char *json,char *json_key,int *val);
 */
 char myJson_getArray(char *json,char *json_key,int *val,int len);
 
+/*
+功能:输出Json数组
+*/
+void myJson_returnJsonArray(char *buff);
+
 /************************************JSON扩展功能**************************************/
+/*
+功能:JSON 创建一个带节点的数组对象
+*/
+void myJson_creatArrayChild(char *name);
+
+/*
+功能:JSON 返回主节点
+输入:无
+输出:无
+*/
+void myJson_returnArrayChild(void);
+
+/*
+功能:JSON 增加数值到子节点
+*/
+char myJson_addValToChild(int val);
+
+/*
+功能:JSON 增加字符串到子节点
+*/
+char myJson_addStrToChild(char *str);
+
+/*
+功能:JSON 增加字符对象到子节点
+*/
+char myJson_addStrTargetToChild(char *name,char *str);
+
+/*
+功能:JSON 增加数值对象到子节点
+*/
+char myJson_addValTargetToChild(char *name,int val);
+
+/*
+功能:JSON 增加数组对象到子节点
+*/
+char myJson_addArrayTargetToChild(char *name,int *val,int len);
 
 #endif
 
