@@ -259,23 +259,38 @@ void myJson_creatObject(void)
 char myJson_addString(char *name,char *str)
 {
 	int length = 0;
+    int wpt=0;
+    int i=0;
 	
-	/*输入内容检查*/
-	myJson_checkInputPack(name);
-	
+	//清除缓存内容
+	cleanBuffer();
+
 	/*传入字段名称*/
-	length = strlen(name);
-	myJsonArray[myJsonWpt++]	= '\"';
-	strcat(&myJsonArray[myJsonWpt],name);
-	myJsonWpt += length;
-	strcat(&myJsonArray[myJsonWpt],"\":\"");
-	myJsonWpt += 3;
+	myJson_checkInputPack(name);
+	myJsonBuffer[wpt++] = '\"';
+    length = myJson_strlen(name);
+    for(i=0;i<length;i++)
+    {
+        myJsonBuffer[1+i] = name[i];
+    }
+    wpt+=length;
+    myJsonBuffer[wpt++] = '\"';
+    myJsonBuffer[wpt++] = ':';
+    myJsonBuffer[wpt++] = '\"';
 
 	/*传入字段内容*/
-	length = strlen(str);
-	strcat(&myJsonArray[myJsonWpt],str);
-	myJsonWpt += length;
-	strcat(&myJsonArray[myJsonWpt++],"\"}");
+    length = myJson_strlen(str);
+    for(i=0;i<length;i++)
+    {
+        myJsonBuffer[i+wpt] = str[i];
+    }
+    wpt+=length;
+    myJsonBuffer[wpt++] = '\"';
+    
+    /*处理结束位置*/
+    myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
+    myJsonWpt += wpt;
+    myJsonArray[myJsonWpt] = '}';
 
 	return MYJSON_OK;
 }
@@ -288,25 +303,32 @@ char myJson_addString(char *name,char *str)
 char myJson_addInt(char *name,int val)
 {
 	int length = 0;
+	int wpt=0;
+    int i=0;
 	
-	/*输入内容检查*/
-	myJson_checkInputPack(name);
+	//清除缓存内容
+	cleanBuffer();
 	
 	/*传入字段名称*/
-	length = strlen(name);
-	myJsonArray[myJsonWpt] = '\"';
-	strcat(&myJsonArray[myJsonWpt],name);
-	myJsonWpt += length;
-	strcat(&myJsonArray[myJsonWpt],"\":");
-	myJsonWpt += 2;
+	myJson_checkInputPack(name);
+	myJsonBuffer[wpt++] = '\"';
+    length = myJson_strlen(name);
+    for(i=0;i<length;i++)
+    {
+        myJsonBuffer[1+i] = name[i];
+    }
+    wpt+=length;
+    myJsonBuffer[wpt++] = '\"';
+    myJsonBuffer[wpt++] = ':';
 
-	/*传入数值内容*/
-	cleanBuffer();
-	myJson_itoa(val,myJsonBuffer,10);
-	length = strlen(myJsonBuffer);
-	strcat(&myJsonArray[myJsonWpt],myJsonBuffer);
-	myJsonWpt += length;
-	strcat(&myJsonArray[myJsonWpt++],"}");
+	/*传入整型数值*/
+	myJson_itoa(val,&myJsonBuffer[wpt],10);
+	wpt = myJson_strlen(myJsonBuffer);
+	
+	/*处理结束位置*/
+    myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
+    myJsonWpt += wpt;
+    myJsonArray[myJsonWpt] = '}';
 
 	return MYJSON_OK;
 }
@@ -319,36 +341,41 @@ char myJson_addInt(char *name,int val)
 char myJson_addArray(char *name,int *val,int len)
 {
 	int length = 0;
-	char intStr[10];
+	int wpt=0;
+    int i=0;
 	
-	/*输入内容检查*/
-	myJson_checkInputPack(name);
+	//清除缓存内容
+	cleanBuffer();
 	
 	/*传入字段名称*/
-	length = strlen(name);
-	myJsonArray[myJsonWpt] = '\"';
-	strcat(&myJsonArray[myJsonWpt],name);
-	myJsonWpt += length;
-	strcat(&myJsonArray[myJsonWpt],"\":[");
-	myJsonWpt += 3;
-
-	int i=0;
+	myJson_checkInputPack(name);
+	myJsonBuffer[wpt++] = '\"';
+    length = myJson_strlen(name);
+    for(i=0;i<length;i++)
+    {
+        myJsonBuffer[1+i] = name[i];
+    }
+    wpt+=length;
+    myJsonBuffer[wpt++] = '\"';
+    myJsonBuffer[wpt++] = ':';
+    myJsonBuffer[wpt++] = '[';
+	
 	for(i=0;i<len;i++)
 	{
 		if(i!=0)
 		{
-			strcat(&myJsonArray[myJsonWpt++],",");
+			myJsonBuffer[wpt++] = ',';
 		}
-		/*传入数值内容*/
-		myJson_itoa(val[i],intStr,10);
-		length = strlen(intStr);
-		strcat(&myJsonArray[myJsonWpt],intStr);
-		myJsonWpt += length;
+		/*传入整型数值*/
+		myJson_itoa(val[i],&myJsonBuffer[wpt],10);
+		wpt = myJson_strlen(myJsonBuffer);
 	}
-	myJsonWpt-=2;
-	strcat(&myJsonArray[myJsonWpt],"]}");
-	myJsonWpt+=4;
-	
+	/*处理结束位置*/
+	myJsonBuffer[wpt++] = ']';
+    myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
+    myJsonWpt += wpt;
+    myJsonArray[myJsonWpt] = '}';
+
 	return MYJSON_OK;
 }
  
@@ -541,9 +568,6 @@ void myJson_creatArrayChild(char *name)
 	strcat(&myJsonChild[myJsonChildWpt],"\":[]");
 	myJsonChildWpt += 3;
 	myJsonChildFlag = 1;
-	
-	printf("myJsonChildWpt:%d\r\n",myJsonChildWpt);
-	printf("%s\r\n",myJsonChild);
 }
 
 /*
@@ -579,7 +603,7 @@ char myJson_addValToChild(int val)
 	/*传入数值内容*/
 	cleanBuffer();
 	myJson_itoa(val,myJsonBuffer,10);
-	length = strlen(myJsonBuffer);
+	length = myJson_strlen(myJsonBuffer);
 	myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
 	myJsonChildWpt+=length;
 	
@@ -598,7 +622,7 @@ char myJson_addStrToChild(char *str)
 	myJson_checkInputChildPack();
 	
 	/*传入字符串内容*/
-	length = strlen(str);
+	length = myJson_strlen(str);
 	myJsonChild[myJsonChildWpt++] = '\"';
 	myJson_insert(myJsonChild,str,myJsonChildWpt);
 	myJsonChildWpt+=length;
@@ -617,7 +641,7 @@ char myJson_addStrTargetToChild(char *name,char *str)
 	myJson_checkInputChildPack();
 	
 	/*传入名字*/
-	length = strlen(name);
+	length = myJson_strlen(name);
 	myJson_insert(myJsonChild,"{\"",myJsonChildWpt);
 	myJsonChildWpt+=2;
 	myJson_insert(myJsonChild,name,myJsonChildWpt);
@@ -626,7 +650,7 @@ char myJson_addStrTargetToChild(char *name,char *str)
 	myJsonChildWpt+=2;
 	
 	/*传入字符内容*/
-	length = strlen(str);
+	length = myJson_strlen(str);
 	myJsonChild[myJsonChildWpt++] = '\"';
 	myJson_insert(myJsonChild,str,myJsonChildWpt);
 	myJsonChildWpt+=length;
@@ -647,7 +671,7 @@ char myJson_addValTargetToChild(char *name,int val)
 	myJson_checkInputChildPack();
 	
 	/*传入名字*/
-	length = strlen(name);
+	length = myJson_strlen(name);
 	myJson_insert(myJsonChild,"{\"",myJsonChildWpt);
 	myJsonChildWpt+=2;
 	myJson_insert(myJsonChild,name,myJsonChildWpt);
@@ -658,7 +682,7 @@ char myJson_addValTargetToChild(char *name,int val)
 	/*传入数值内容*/
 	cleanBuffer();
 	myJson_itoa(val,myJsonBuffer,10);
-	length = strlen(myJsonBuffer);
+	length = myJson_strlen(myJsonBuffer);
 	myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
 	myJsonChildWpt+=length;
 	myJson_insert(myJsonChild,"}",myJsonChildWpt++);
@@ -677,7 +701,7 @@ char myJson_addArrayTargetToChild(char *name,int *val,int len)
 	myJson_checkInputChildPack();
 	
 	/*传入名字*/
-	length = strlen(name);
+	length = myJson_strlen(name);
 	myJson_insert(myJsonChild,"{\"",myJsonChildWpt);
 	myJsonChildWpt+=2;
 	myJson_insert(myJsonChild,name,myJsonChildWpt);
@@ -691,7 +715,7 @@ char myJson_addArrayTargetToChild(char *name,int *val,int len)
 		/*传入数值内容*/
 		cleanBuffer();
 		myJson_itoa(val[i],myJsonBuffer,10);
-		length = strlen(myJsonBuffer);
+		length = myJson_strlen(myJsonBuffer);
 		myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
 		myJsonChildWpt+=length;
 		if(i != (len - 1))
