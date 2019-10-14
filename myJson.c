@@ -91,6 +91,17 @@ int myJson_atol(char *str)//字符串转数字
 	return (int)res;
 }
 
+/* 获取字符串长度 */
+static int myJson_strlen(char *string)
+{
+    int len = 0;
+    while (*string != '\0') {
+        string++;
+        len++;
+    }
+    return len;
+}
+
 /*字符串插入*/
 char *myJson_insert(char *s1, char *s2, int n)
 {
@@ -100,8 +111,8 @@ char *myJson_insert(char *s1, char *s2, int n)
 		return NULL;
 	if (s2 == NULL)
 		return s1;
-	len1 = strlen(s1);
-	len2 = strlen(s2);
+	len1 = myJson_strlen(s1);
+	len2 = myJson_strlen(s2);
 
 	if(n>len1)
 		return NULL;
@@ -123,17 +134,6 @@ char *myJson_insert(char *s1, char *s2, int n)
 	s1[j] = '\0';
 	
 	return s1;
-}
-
-/* 获取字符串长度 */
-static int myJson_strlen(char *string)
-{
-    int len = 0;
-    while (*string != '\0') {
-        string++;
-        len++;
-    }
-    return len;
 }
 
 /* 字符匹配 */
@@ -179,6 +179,38 @@ static int myJson_strcmp(char* str1, char* str2)
    return *str1-*str2;
 }
 
+/*增加数据到缓存区*/
+char myJson_addStrtoBuffer(char *str,int addr)
+{
+	int length = 0;
+	int i=0;
+	
+	length = myJson_strlen(str);
+	
+	for(i=0;i<length;i++)
+	{
+			myJsonBuffer[addr+i] = str[i];
+	}
+	addr+=length;
+	
+	return addr;
+}
+
+/*增加多组数据到缓存区*/
+char myJson_writeBuffer(char *str1,char *str2,char *str3,int addr)
+{
+	if(str1 != NULL)
+		addr = myJson_addStrtoBuffer(str1,addr);
+	
+	if(str2 != NULL)
+		addr = myJson_addStrtoBuffer(str2,addr);
+	
+	if(str3 != NULL)
+		addr = myJson_addStrtoBuffer(str3,addr);
+	
+	return addr;
+}
+
 /*
 功能:检查输入的数据
 输入:无
@@ -186,8 +218,6 @@ static int myJson_strcmp(char* str1, char* str2)
 */
 static char myJson_checkInputPack(char *str)
 {
-	int length = 0;
-
 	/*can't input NULL data*/
 	if(str == NULL || str == NULL)
 	{
@@ -195,8 +225,7 @@ static char myJson_checkInputPack(char *str)
 	}	
 	
 	//判断传入数据有没有超出范围
-	length = strlen(str) + 10;
-	if((myJsonWpt + length )>= MYJSON_ARRAYY_SIZE)
+	if((myJsonWpt + 32 )>= MYJSON_ARRAYY_SIZE)
 	{
 		return SIZE_LIMIT;
 	}
@@ -216,8 +245,14 @@ static char myJson_checkInputPack(char *str)
 输入:无
 输出:无
 */
-static void myJson_checkInputChildPack(void)
+static char myJson_checkInputChildPack(void)
 {
+	//判断传入数据有没有超出范围
+	if((myJsonWpt + myJsonChildWpt + 32 )>= MYJSON_ARRAYY_SIZE)
+	{
+		return SIZE_LIMIT;
+	}
+	
 	/*判断当前添加位置是不是第一包数据*/
 	if(!myJsonChildFlag)
 	{
@@ -225,6 +260,8 @@ static void myJson_checkInputChildPack(void)
 		myJsonChild[myJsonChildWpt++] = ',';
 	}
 	else myJsonChildFlag = 0;
+	
+	return MYJSON_OK;
 }
 
 /************************************JSON基础功能**************************************/
@@ -245,7 +282,7 @@ void myJson_creatObject(void)
 
 	myJsonWpt = 0;
 	/*add json data in array*/
-	strcat(&myJsonArray[myJsonWpt],"{}");
+	myJson_insert(myJsonArray,"{}",myJsonWpt);
 
 	/*the Wpt will be used,when add new data*/
 	myJsonWpt = 1;
@@ -258,9 +295,7 @@ void myJson_creatObject(void)
 */
 char myJson_addString(char *name,char *str)
 {
-	int length = 0;
-    int wpt=0;
-    int i=0;
+	int wpt=0;
 	
 	//清除缓存内容
 	cleanBuffer();
@@ -268,29 +303,14 @@ char myJson_addString(char *name,char *str)
 	/*传入字段名称*/
 	myJson_checkInputPack(name);
 	myJsonBuffer[wpt++] = '\"';
-    length = myJson_strlen(name);
-    for(i=0;i<length;i++)
-    {
-        myJsonBuffer[1+i] = name[i];
-    }
-    wpt+=length;
-    myJsonBuffer[wpt++] = '\"';
-    myJsonBuffer[wpt++] = ':';
-    myJsonBuffer[wpt++] = '\"';
-
 	/*传入字段内容*/
-    length = myJson_strlen(str);
-    for(i=0;i<length;i++)
-    {
-        myJsonBuffer[i+wpt] = str[i];
-    }
-    wpt+=length;
-    myJsonBuffer[wpt++] = '\"';
-    
-    /*处理结束位置*/
-    myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
-    myJsonWpt += wpt;
-    myJsonArray[myJsonWpt] = '}';
+	wpt = myJson_writeBuffer(name,(char *)"\":\"",str,wpt);
+	myJsonBuffer[wpt++] = '\"';
+
+	/*处理结束位置*/
+	myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
+	myJsonWpt += wpt;
+	myJsonArray[myJsonWpt] = '}';
 
 	return MYJSON_OK;
 }
@@ -302,9 +322,7 @@ char myJson_addString(char *name,char *str)
 */
 char myJson_addInt(char *name,int val)
 {
-	int length = 0;
 	int wpt=0;
-    int i=0;
 	
 	//清除缓存内容
 	cleanBuffer();
@@ -312,23 +330,16 @@ char myJson_addInt(char *name,int val)
 	/*传入字段名称*/
 	myJson_checkInputPack(name);
 	myJsonBuffer[wpt++] = '\"';
-    length = myJson_strlen(name);
-    for(i=0;i<length;i++)
-    {
-        myJsonBuffer[1+i] = name[i];
-    }
-    wpt+=length;
-    myJsonBuffer[wpt++] = '\"';
-    myJsonBuffer[wpt++] = ':';
+	wpt = myJson_writeBuffer(name,(char *)"\":",NULL,wpt);
 
 	/*传入整型数值*/
 	myJson_itoa(val,&myJsonBuffer[wpt],10);
 	wpt = myJson_strlen(myJsonBuffer);
-	
+
 	/*处理结束位置*/
-    myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
-    myJsonWpt += wpt;
-    myJsonArray[myJsonWpt] = '}';
+	myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
+	myJsonWpt += wpt;
+	myJsonArray[myJsonWpt] = '}';
 
 	return MYJSON_OK;
 }
@@ -340,7 +351,6 @@ char myJson_addInt(char *name,int val)
 */
 char myJson_addArray(char *name,int *val,int len)
 {
-	int length = 0;
 	int wpt=0;
     int i=0;
 	
@@ -350,15 +360,8 @@ char myJson_addArray(char *name,int *val,int len)
 	/*传入字段名称*/
 	myJson_checkInputPack(name);
 	myJsonBuffer[wpt++] = '\"';
-    length = myJson_strlen(name);
-    for(i=0;i<length;i++)
-    {
-        myJsonBuffer[1+i] = name[i];
-    }
-    wpt+=length;
-    myJsonBuffer[wpt++] = '\"';
-    myJsonBuffer[wpt++] = ':';
-    myJsonBuffer[wpt++] = '[';
+
+	wpt = myJson_writeBuffer(name,(char *)"\":[",NULL,wpt);
 	
 	for(i=0;i<len;i++)
 	{
@@ -372,9 +375,9 @@ char myJson_addArray(char *name,int *val,int len)
 	}
 	/*处理结束位置*/
 	myJsonBuffer[wpt++] = ']';
-    myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
-    myJsonWpt += wpt;
-    myJsonArray[myJsonWpt] = '}';
+	myJson_insert(myJsonArray,myJsonBuffer,myJsonWpt);
+	myJsonWpt += wpt;
+	myJsonArray[myJsonWpt] = '}';
 
 	return MYJSON_OK;
 }
@@ -423,43 +426,43 @@ char myJson_checkValue(char *str1, char *str2)
 static char myJson_getData(char *json,char *json_key , char *json_value,int *val, char type)
 {
 	char *json_key_start; //定义键名开始的位置
-    char *json_key_end; //定义键名结束的位置
-    char json_key_length; //定义键名长度
-    
-    char *json_value_start; //定义键值开始的位置
-    char *json_value_end; //定义键值结束的位置
-    char json_value_length; //定义键值长度
-    
-    json_key_start = myJson_strstr(json,json_key); //获取键名开始的位置
-    json_key_length = myJson_strlen(json_key); //获取键名的长度
-    json_key_end = json_key_start + json_key_length;  //获取键名结束的位置
-    
-    if(json_key_start != 0 && *(json_key_start - 1) == '\"' && *(json_key_end) == '\"' && *(json_key_end + 1) == ':')
-    {
-        json_value_start = json_key_end + 2 + type; //获取键值开始的位置
-				json_value_end = (type == STR_TYPE)?myJson_strstr(json_value_start,"\""):myJson_strstr(json_value_start,",");
-        json_value_length = json_value_end - json_value_start; //获取键值的长度
-        
-		if(type == STR_TYPE)
-		{
-			myJson_strncpy(json_value,json_value_start,json_value_length); //将键值存入指针数组
-			json_value[json_value_length] = '\0'; //指针最后一位补字符串结束符 \0
-		}
-		else
-		{
-			cleanBuffer();
-			myJson_strncpy(myJsonBuffer,json_value_start,json_value_length); //将键值存入指针数组
-			*val = myJson_atol(myJsonBuffer);
-		}
-        
-        return MYJSON_OK; //成功获取键值
-    }
-    else
-    {
-		if(type == STR_TYPE)
-			json_value[0] = '\0';
-        return MYJSON_ERR; //失败获取键值
-    }
+	char *json_key_end; //定义键名结束的位置
+	char json_key_length; //定义键名长度
+	
+	char *json_value_start; //定义键值开始的位置
+	char *json_value_end; //定义键值结束的位置
+	char json_value_length; //定义键值长度
+	
+	json_key_start = myJson_strstr(json,json_key); //获取键名开始的位置
+	json_key_length = myJson_strlen(json_key); //获取键名的长度
+	json_key_end = json_key_start + json_key_length;  //获取键名结束的位置
+	
+	if(json_key_start != 0 && *(json_key_start - 1) == '\"' && *(json_key_end) == '\"' && *(json_key_end + 1) == ':')
+	{
+			json_value_start = json_key_end + 2 + type; //获取键值开始的位置
+			json_value_end = (type == STR_TYPE)?myJson_strstr(json_value_start,"\""):myJson_strstr(json_value_start,",");
+			json_value_length = json_value_end - json_value_start; //获取键值的长度
+			
+	if(type == STR_TYPE)
+	{
+		myJson_strncpy(json_value,json_value_start,json_value_length); //将键值存入指针数组
+		json_value[json_value_length] = '\0'; //指针最后一位补字符串结束符 \0
+	}
+	else
+	{
+		cleanBuffer();
+		myJson_strncpy(myJsonBuffer,json_value_start,json_value_length); //将键值存入指针数组
+		*val = myJson_atol(myJsonBuffer);
+	}
+			
+			return MYJSON_OK; //成功获取键值
+	}
+	else
+	{
+	if(type == STR_TYPE)
+		json_value[0] = '\0';
+			return MYJSON_ERR; //失败获取键值
+	}
 }
 
 /*
@@ -549,8 +552,11 @@ void myJson_returnJsonArray(char *buff)
 */
 void myJson_creatArrayChild(char *name)
 {
+	int wpt=0;
 	int i=0;
-	int length = 0;
+	
+	//清除缓存内容
+	cleanBuffer();
 	
 	/*clean buff*/
 	for(i=0;i<MYJSON_ARRAYY_SIZE>>2;i++)
@@ -559,14 +565,15 @@ void myJson_creatArrayChild(char *name)
 	}
 
 	myJsonChildWpt = 0;
-
+	
 	/*add json data in array*/
-	strcat(&myJsonChild[myJsonChildWpt++],"\"");
-	length = strlen(name);
-	strcat(&myJsonChild[myJsonChildWpt],name);
-	myJsonChildWpt += length;
-	strcat(&myJsonChild[myJsonChildWpt],"\":[]");
-	myJsonChildWpt += 3;
+	myJsonBuffer[wpt++] = '\"';
+
+	wpt = myJson_writeBuffer(name,(char *)"\":[",NULL,wpt);
+	
+	myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
+	myJsonChildWpt+=wpt;
+	myJsonChild[myJsonChildWpt] = ']';
 	myJsonChildFlag = 1;
 }
 
@@ -583,10 +590,10 @@ void myJson_returnArrayChild(void)
 		/*新传入参数*/
 		myJsonArray[myJsonWpt++] = ',';
 	}
-	
-	strcat(&myJsonArray[myJsonWpt],myJsonChild);
+	myJson_insert(myJsonArray,myJsonChild,myJsonWpt);
 	myJsonWpt += myJsonChildWpt;
-	strcat(&myJsonArray[myJsonWpt++],"]}");
+	myJson_insert(myJsonArray,"]}",myJsonWpt);
+	myJsonWpt++;
 }
 
 /*
@@ -630,6 +637,8 @@ char myJson_addStrToChild(char *str)
 	return MYJSON_OK;
 }
 
+
+
 /*
 功能:JSON 增加字符对象到子节点
 输入:节点名称
@@ -637,25 +646,22 @@ char myJson_addStrToChild(char *str)
 */
 char myJson_addStrTargetToChild(char *name,char *str)
 {
-	int length = 0;
+	int wpt=0;
+	
+	//清除缓存内容
+	cleanBuffer();
+	
 	myJson_checkInputChildPack();
 	
 	/*传入名字*/
-	length = myJson_strlen(name);
-	myJson_insert(myJsonChild,"{\"",myJsonChildWpt);
-	myJsonChildWpt+=2;
-	myJson_insert(myJsonChild,name,myJsonChildWpt);
-	myJsonChildWpt+=length;
-	myJson_insert(myJsonChild,"\":",myJsonChildWpt);
-	myJsonChildWpt+=2;
+	wpt = myJson_writeBuffer((char *)"{\"",name,(char *)"\":\"",wpt);
 	
 	/*传入字符内容*/
-	length = myJson_strlen(str);
+	wpt = myJson_addStrtoBuffer(str,wpt);
+	myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
+	myJsonChildWpt+=wpt;
 	myJsonChild[myJsonChildWpt++] = '\"';
-	myJson_insert(myJsonChild,str,myJsonChildWpt);
-	myJsonChildWpt+=length;
-	myJson_insert(myJsonChild,"\"}",myJsonChildWpt);
-	myJsonChildWpt+=2;
+	myJsonChild[myJsonChildWpt++] = '}';
 	
 	return MYJSON_OK;
 }
@@ -668,17 +674,18 @@ char myJson_addStrTargetToChild(char *name,char *str)
 char myJson_addValTargetToChild(char *name,int val)
 {
 	int length = 0;
+	int wpt=0;
+	
+	//清除缓存内容
+	cleanBuffer();
+	
 	myJson_checkInputChildPack();
 	
 	/*传入名字*/
-	length = myJson_strlen(name);
-	myJson_insert(myJsonChild,"{\"",myJsonChildWpt);
-	myJsonChildWpt+=2;
-	myJson_insert(myJsonChild,name,myJsonChildWpt);
-	myJsonChildWpt+=length;
-	myJson_insert(myJsonChild,"\":",myJsonChildWpt);
-	myJsonChildWpt+=2;
-	
+	wpt = myJson_writeBuffer((char *)"{\"",name,(char *)"\":",wpt);
+	myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
+	myJsonChildWpt+=wpt;
+
 	/*传入数值内容*/
 	cleanBuffer();
 	myJson_itoa(val,myJsonBuffer,10);
@@ -698,17 +705,18 @@ char myJson_addValTargetToChild(char *name,int val)
 char myJson_addArrayTargetToChild(char *name,int *val,int len)
 {
 	int length = 0;
+	int wpt=0;
+	
+	//清除缓存内容
+	cleanBuffer();
+	
 	myJson_checkInputChildPack();
 	
 	/*传入名字*/
-	length = myJson_strlen(name);
-	myJson_insert(myJsonChild,"{\"",myJsonChildWpt);
-	myJsonChildWpt+=2;
-	myJson_insert(myJsonChild,name,myJsonChildWpt);
-	myJsonChildWpt+=length;
-	myJson_insert(myJsonChild,"\":[",myJsonChildWpt);
-	myJsonChildWpt+=3;
-	
+	wpt = myJson_writeBuffer((char *)"{\"",name,(char *)"\":[",wpt);
+	myJson_insert(myJsonChild,myJsonBuffer,myJsonChildWpt);
+	myJsonChildWpt+=wpt;
+
 	int i=0;
 	for(i=0;i<len;i++)
 	{

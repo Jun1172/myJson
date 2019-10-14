@@ -2,9 +2,6 @@
 #define MYJSON_H
 
 #include <stdio.h>  
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 
 #include "myJsonPack.h"
 
@@ -24,7 +21,7 @@ extern char myJsonArray[MYJSON_ARRAYY_SIZE];
 #define STR_TYPE 1
 
 /*return state*/
-#define MYJSON_OK				0//操作成功
+#define MYJSON_OK					0//操作成功
 #define MYJSON_ERR				1//操作异常
 #define INPUT_NULL				2//输入为空
 #define SIZE_LIMIT				3//传入数据超出设定缓存大小
